@@ -1,7 +1,8 @@
 <template>
   <div class="container mx-auto flex flex-col items-center bg-gray-100 p-4">
-    <!-- <div
+    <div
       class="fixed w-100 h-100 opacity-80 bg-purple-800 inset-0 z-50 flex items-center justify-center"
+      v-if="!cryptoList.size"
     >
       <svg
         class="animate-spin -ml-1 mr-3 h-12 w-12 text-white"
@@ -23,7 +24,7 @@
           d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
         ></path>
       </svg>
-    </div> -->
+    </div>
 
     <div class="container">
       <div class="w-full my-4"></div>
@@ -38,11 +39,11 @@
                 v-model="ticker"
                 @keyup="cryptoHints"
                 @input="
-                  warning = false;
+                  warning.show = false;
                   cryptoHints;
                 "
-                @keydown.left="warning = false"
-                @keydown.right="warning = false"
+                @keydown.left="warning.show = false"
+                @keydown.right="warning.show = false"
                 @keydown.enter="add"
                 type="text"
                 name="wallet"
@@ -64,8 +65,8 @@
                 {{ hint }}
               </span>
             </div>
-            <div class="text-sm text-red-600" v-if="warning">
-              Такой тикер уже добавлен
+            <div class="text-sm text-red-600" v-if="warning.show">
+              {{ warning.message }}
             </div>
           </div>
         </div>
@@ -186,13 +187,43 @@ export default {
       graph: [],
       cryptoList: new Map(),
       hintsList: [], //"btc", "fgh", "123"
-      warning: false,
+      warning: {
+        show: false,
+        message: "",
+      },
+      warningMessages: {
+        existanxeMessage: "Нет такой криптовалюты",
+        alreadyAddMessage: "Такой тикер уже добавлен",
+      },
     };
   },
   mounted() {
     this.getCryptoList();
   },
+  created() {
+    const tickersData = localStorage.getItem("cryptonomicon-list");
+    if (tickersData) {
+      this.tickers = JSON.parse(tickersData);
+      this.tickers.forEach((ticker) => this.subscribeToUpdates(ticker.name));
+    }
+  },
   methods: {
+    subscribeToUpdates(tickerName) {
+      setInterval(async () => {
+        const f = await fetch(
+          `https://min-api.cryptocompare.com/data/price?fsym=${tickerName}&tsyms=USD&api_key=d4f354b505f4110b59f6114673b558c354427fcf62a15418b7b10896e393fef8`
+        );
+        const data = await f.json();
+        this.tickers.find((t) => t.name === tickerName).price =
+          data.USD > 1 ? data.USD.toFixed(2) : data.USD.toPrecision(2);
+
+        // currentTicker.price = data.USD;//not work
+        // console.log(data);
+        if (this.sel?.name === tickerName) {
+          this.graph.push(data.USD);
+        }
+      }, 20000);
+    },
     hintClick(hint) {
       this.ticker = hint;
       this.add();
@@ -206,8 +237,7 @@ export default {
           if (value.Symbol.includes(this.ticker.toUpperCase())) {
             this.hintsList.push(value.Symbol);
           }
-          if (this.hintsList.length > 4) {
-            this.hintsList.length = 4;
+          if (this.hintsList.length === 4) {
             break;
           }
         }
@@ -226,29 +256,29 @@ export default {
         name: this.ticker.toUpperCase(),
         price: "-",
       };
+      const criptoExists = Array.from(this.cryptoList.values()).some(
+        (item) => item.Symbol === currentTicker.name
+      );
       if (this.tickers.find((ticker) => ticker.name == currentTicker.name)) {
-        this.warning = true;
-      } else {
-        this.warning = false;
-        if (cryptoList.values()) {
-          this.tickers.push(currentTicker);
-          setInterval(async () => {
-            const f = await fetch(
-              `https://min-api.cryptocompare.com/data/price?fsym=${currentTicker.name}&tsyms=USD&api_key=d4f354b505f4110b59f6114673b558c354427fcf62a15418b7b10896e393fef8`
-            );
-            const data = await f.json();
-            this.tickers.find((t) => t.name === currentTicker.name).price =
-              data.USD > 1 ? data.USD.toFixed(2) : data.USD.toPrecision(2);
+        this.warning.show = true;
+        this.warning.message = this.warningMessages.alreadyAddMessage;
+      } else if (criptoExists) {
+        this.warning.show = false;
+        // for (let token of this.cryptoList.values()) console.log(token);
+        this.tickers.push(currentTicker);
 
-            // currentTicker.price = data.USD;//not work
-            // console.log(data);
-            if (this.sel?.name === currentTicker.name) {
-              this.graph.push(data.USD);
-            }
-          }, 20000);
-        }
+        localStorage.setItem(
+          "cryptonomicon-list",
+          JSON.stringify(this.tickers)
+        );
+
+        this.subscribeToUpdates(currentTicker.name);
+
         this.ticker = "";
         this.hintsList = [];
+      } else {
+        this.warning.message = this.warningMessages.existanxeMessage;
+        this.warning.show = true;
       }
     },
     handleDelete(tickerToRemove) {

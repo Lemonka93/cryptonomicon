@@ -98,18 +98,19 @@
           Фильтр:
           <input
             v-model="filter"
+            @input="page = 1"
             type="text"
             class="block w-full pr-10 border-gray-300 text-gray-900 focus:outline-none focus:ring-gray-500 focus:border-gray-500 sm:text-sm rounded-md"
           /><button
             class="my-4 mx-2 inline-flex items-center py-2 px-4 border border-transparent shadow-sm text-sm leading-4 font-medium rounded-full text-white bg-gray-600 hover:bg-gray-700 transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
-            v-if="page > 1"
+            :disabled="buttonBackwardDisabled"
             @click="page--"
           >
             Назад</button
           ><button
             class="my-4 mx-2 inline-flex items-center py-2 px-4 border border-transparent shadow-sm text-sm leading-4 font-medium rounded-full text-white bg-gray-600 hover:bg-gray-700 transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
             @click="page++"
-            v-if="hasNextPage"
+            :disabled="buttonForwardDisabled"
           >
             Вперёд
           </button>
@@ -204,9 +205,16 @@ export default {
   data() {
     return {
       ticker: "",
+      filter: "",
+
       tickers: [],
       sel: null,
+
       graph: [],
+
+      page: 1,
+      hasNextPage: true,
+
       cryptoList: new Map(),
       hintsList: [], //"btc", "fgh", "123"
       warning: {
@@ -217,10 +225,15 @@ export default {
         existanxeMessage: "Нет такой криптовалюты",
         alreadyAddMessage: "Такой тикер уже добавлен",
       },
-      page: 1,
-      filter: "",
-      hasNextPage: true,
     };
+  },
+  computed: {
+    buttonBackwardDisabled() {
+      return !(this.page > 1);
+    },
+    buttonForwardDisabled() {
+      return !this.hasNextPage;
+    },
   },
   mounted() {
     this.getCryptoList();
@@ -359,3 +372,10 @@ export default {
   },
 };
 </script>
+<style>
+button:disabled,
+button:disabled:hover {
+  background-color: rgb(141, 138, 138);
+  cursor: not-allowed;
+}
+</style>

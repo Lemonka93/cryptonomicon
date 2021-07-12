@@ -326,7 +326,8 @@ export default {
     },
 
     formatPrice(price) {
-      if (price === "-") return price;
+      if (price === "-" || !price) return "-";
+      console.log("price", price);
       return price > 1 ? price.toFixed(2) : price.toPrecision(2);
     },
     async updateTickers() {
